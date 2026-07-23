@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ripple — edit one frame, ripple it through the scene</title>
+<meta name="description" content="Scene-level edit propagation for Runway Aleph 2.0. Approve an edit on one frame, see what it costs, propagate it across every shot, review each one." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #0f0f13; --panel: #16161c; --line: #2a2a34; --line-soft: #22222b;
+    --text: #e8e6e1; --dim: #8b8a93; --faint: #57565f;
+    --amber: #ffb020; --amber-dim: #7a5510; --green: #4ade80; --blue: #6aa8ff;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'Archivo', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--ink); color: var(--text); font-family: var(--sans);
+    font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  body::after {
+    content: ''; position: fixed; inset: 0; pointer-events: none; opacity: .035; z-index: 99;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a { color: var(--amber); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+  .label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 16px;
+  }
+
+  header.top {
+    display: flex; align-items: center; gap: 12px; padding: 18px 24px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .wordmark { font-weight: 800; font-size: 18px; letter-spacing: -0.02em; color: var(--text); }
+  .wordmark .tick { color: var(--amber); }
+  header.top .sub { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+  header.top .links { margin-left: auto; display: flex; gap: 18px; font-size: 14px; font-weight: 600; }
+
+  .hero { padding: 96px 0 56px; }
+  .hero h1 {
+    font-size: clamp(44px, 8vw, 84px); font-weight: 800; letter-spacing: -0.035em;
+    line-height: .98; margin-bottom: 24px;
+  }
+  .hero h1 .amber { color: var(--amber); }
+  .hero p.lede { color: var(--dim); font-size: 18px; max-width: 58ch; margin-bottom: 32px; }
+  .btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block; padding: 12px 22px; border-radius: 5px; font-weight: 700;
+    font-size: 14px; border: 1px solid var(--line);
+  }
+  .btn.primary { background: var(--amber); border-color: var(--amber); color: #14100a; }
+  .btn.primary:hover { background: #ffc14d; text-decoration: none; }
+  .btn.ghost { color: var(--text); }
+  .btn.ghost:hover { border-color: var(--dim); text-decoration: none; }
+
+  /* wipe */
+  .wipe-section { padding: 40px 0 16px; }
+  .compare {
+    position: relative; background: #000; user-select: none; border-radius: 8px;
+    overflow: hidden; border: 1px solid var(--line-soft); cursor: ew-resize;
+    touch-action: none;
+  }
+  .compare video { width: 100%; display: block; pointer-events: none; }
+  .compare .after-layer { position: absolute; inset: 0; overflow: hidden; }
+  .compare .after-layer video { position: absolute; inset: 0; height: 100%; }
+  .compare .divider { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--amber); z-index: 3; }
+  .compare .divider::after {
+    content: '◂ ▸'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: var(--amber); color: #14100a; font-size: 10px; padding: 5px 8px;
+    border-radius: 12px; white-space: nowrap; font-family: var(--mono);
+  }
+  .compare .tag {
+    position: absolute; top: 12px; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .12em; padding: 4px 9px; background: rgba(0,0,0,.72);
+    border-radius: 3px; z-index: 2; pointer-events: none;
+  }
+  .compare .tag.before { left: 12px; color: var(--dim); }
+  .compare .tag.after { right: 12px; color: var(--amber); }
+  .caption { font-family: var(--mono); font-size: 12px; color: var(--faint); margin-top: 12px; }
+  .caption b { color: var(--amber); font-weight: 600; }
+
+  /* stats */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden; margin: 48px 0; }
+  .stat { background: var(--panel); padding: 24px 20px; }
+  .stat .num { font-family: var(--mono); font-size: 34px; font-weight: 600; color: var(--amber); }
+  .stat .num small { font-size: 16px; color: var(--dim); }
+  .stat .desc { font-size: 12.5px; color: var(--dim); margin-top: 6px; line-height: 1.45; }
+
+  section.block { padding: 56px 0; border-top: 1px solid var(--line-soft); }
+  section.block h2 { font-size: clamp(26px, 4vw, 38px); font-weight: 800; letter-spacing: -0.025em; margin-bottom: 18px; }
+  section.block p { color: var(--dim); max-width: 68ch; margin-bottom: 14px; }
+  section.block p strong { color: var(--text); }
+
+  /* keyframe pair */
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 28px 0 10px; }
+  .pair figure { border: 1px solid var(--line-soft); border-radius: 8px; overflow: hidden; background: #000; }
+  .pair img { width: 100%; display: block; }
+  .pair figcaption { font-family: var(--mono); font-size: 11px; color: var(--faint); padding: 10px 12px; letter-spacing: .08em; }
+  .pair figure.approved { border-color: var(--amber-dim); }
+  .pair figure.approved figcaption { color: var(--amber); }
+  @media (max-width: 640px) { .pair { grid-template-columns: 1fr; } }
+
+  /* pipeline */
+  .stages { display: flex; flex-direction: column; gap: 0; margin-top: 32px; counter-reset: st; }
+  .stage {
+    display: grid; grid-template-columns: 56px 200px 1fr; gap: 18px; padding: 22px 0;
+    border-top: 1px solid var(--line-soft); align-items: baseline;
+  }
+  .stage:last-child { border-bottom: 1px solid var(--line-soft); }
+  .stage .n {
+    counter-increment: st; font-family: var(--mono); font-size: 12px; color: var(--amber);
+  }
+  .stage .n::before { content: '0' counter(st); }
+  .stage h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .stage p { font-size: 14px; color: var(--dim); margin: 0; }
+  .stage .cost { font-family: var(--mono); font-size: 11px; color: var(--amber-dim); display: block; margin-top: 4px; }
+  @media (max-width: 720px) { .stage { grid-template-columns: 40px 1fr; } .stage p { grid-column: 2; } }
+
+  /* honest list */
+  ul.honest { list-style: none; margin-top: 20px; max-width: 72ch; }
+  ul.honest li { padding: 10px 0 10px 26px; position: relative; color: var(--dim); font-size: 14.5px; border-top: 1px dashed var(--line-soft); }
+  ul.honest li::before { content: '▸'; position: absolute; left: 4px; color: var(--amber-dim); }
+  ul.honest li b { color: var(--text); font-weight: 600; }
+
+  pre.run {
+    background: var(--panel); border: 1px solid var(--line-soft); border-radius: 8px;
+    padding: 20px 22px; font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    color: var(--text); overflow-x: auto; margin: 24px 0;
+  }
+  pre.run .c { color: var(--faint); }
+  pre.run .a { color: var(--amber); }
+
+  footer { padding: 48px 24px 64px; border-top: 1px solid var(--line-soft); }
+  footer .wrap { display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; }
+  footer span { font-family: var(--mono); font-size: 11px; color: var(--faint); letter-spacing: .08em; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <span class="wordmark"><span class="tick">◧</span> Ripple</span>
+  <span class="sub">scene-level edit propagation</span>
+  <nav class="links">
+    <a href="https://github.com/tappj/Ripple">GitHub</a>
+  </nav>
+</header>
+
+<div class="wrap">
+  <section class="hero">
+    <h1>Edit one frame.<br /><span class="amber">Ripple it</span> through the scene.</h1>
+    <p class="lede">
+      Runway's Aleph 2.0 edits one clip at a time — its world ends at a 30-second file.
+      Ripple treats the whole scene as the unit: approve an edit on a single frame, see
+      exactly what it will cost, propagate it across every shot, then review each one and
+      retry the ones that drifted.
+    </p>
+    <div class="btn-row">
+      <a class="btn primary" href="https://github.com/tappj/Ripple">Clone &amp; run it</a>
+      <a class="btn ghost" href="#how">How it works</a>
+    </div>
+  </section>
+
+  <section class="wipe-section">
+    <div class="label">One instruction · four shots · one Aleph pass — drag the wipe</div>
+    <div class="compare" id="wipe">
+      <video id="v-before" src="assets/before.mp4" muted playsinline loop autoplay preload="auto"></video>
+      <div class="after-layer" id="after-layer">
+        <video id="v-after" src="assets/after.mp4" muted playsinline loop autoplay preload="auto"></video>
+      </div>
+      <span class="tag before">ORIGINAL</span>
+      <span class="tag after">EDITED</span>
+      <div class="divider" id="divider"></div>
+    </div>
+    <div class="caption">
+      instruction: <b>"change the red rain jacket to a mustard-yellow raincoat"</b> —
+      propagated to all 4 shots in a single aleph2 call, playback synced, no per-shot re-prompting
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="num">440<small> cr</small></div><div class="desc">actual cost of the full scene pass ($4.40) — within 2% of the estimate Ripple showed before running</div></div>
+      <div class="stat"><div class="num">1<small> / 4</small></div><div class="desc">Aleph calls per scene — one grouped call edits four shots, instead of four independent edits hoping to agree</div></div>
+      <div class="stat"><div class="num">20<small> cr</small></div><div class="desc">cost to iterate on the edit as a still image before any video credits move</div></div>
+      <div class="stat"><div class="num">0<small> cr</small></div><div class="desc">to try the whole tool — mock mode simulates every model call with a visible stand-in edit</div></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="label">The cheap gate</div>
+    <h2>Intent is an image, not a prompt.</h2>
+    <p>
+      Text drifts — "mustard-yellow" renders differently on every call. So Ripple converges
+      on the edit as a <strong>still image first</strong> (~20 credits a try), and only an
+      explicitly approved keyframe unlocks video spend. That approved image then guides every
+      Aleph call as timed keyframe guidance, so all of them aim at the same target.
+    </p>
+    <div class="pair">
+      <figure>
+        <img src="assets/hero-before.jpg" alt="Original hero frame: woman in a red rain jacket" loading="lazy" />
+        <figcaption>HERO FRAME · EXTRACTED FROM SHOT 3</figcaption>
+      </figure>
+      <figure class="approved">
+        <img src="assets/hero-after.jpg" alt="Approved keyframe: same frame with a mustard-yellow raincoat" loading="lazy" />
+        <figcaption>APPROVED KEYFRAME · 20 CR · GATES ALL VIDEO SPEND</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="block" id="how">
+    <div class="label">The pipeline</div>
+    <h2>Five stages, priced before they run.</h2>
+    <div class="stages">
+      <div class="stage">
+        <span class="n"></span>
+        <h3>Ingest</h3>
+        <p>Drop per-shot files, or one exported sequence Ripple splits at detected scene cuts. Originals are never touched.</p>
+      </div>
+      <div class="stage">
+        <span class="n"></span>
+        <h3>Hero frame</h3>
+        <p>Scrub to the frame that shows the target, describe the change, iterate on cheap image drafts, approve one.
+          <span class="cost">~20 cr / attempt</span></p>
+      </div>
+      <div class="stage">
+        <span class="n"></span>
+        <h3>Plan</h3>
+        <p>Shots are packed in scene order into groups that fit Aleph's window (≤30s, ≤10 cuts), each anchored to a keyframe derived from your approved edit. Full plan + credit estimate shown; nothing runs until you say so.</p>
+      </div>
+      <div class="stage">
+        <span class="n"></span>
+        <h3>Propagate</h3>
+        <p>Per group: concat → upload → aleph2 with timed keyframe guidance → poll with live progress → split the result back into shots at known cut offsets.
+          <span class="cost">28 cr / second of input</span></p>
+      </div>
+      <div class="stage">
+        <span class="n"></span>
+        <h3>Review</h3>
+        <p>Every shot gets a playback-synced before/after wipe. Accept what holds; retry a drifted shot alone with a freshly derived keyframe — one bad shot never means re-running the scene.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="label">Honest edges</div>
+    <h2>Where it breaks, on purpose.</h2>
+    <ul class="honest">
+      <li><b>Identity jumps break propagation.</b> Aleph assumes visual continuity across cuts; a different actor or product variant can come back inconsistent. Detection is human — that's what the review board is for. Automatic drift scoring is the obvious next build.</li>
+      <li><b>Re-split assumes preserved timing.</b> Cut boundaries in the edited group could drift by a frame or two versus the original offsets.</li>
+      <li><b>One edit at a time.</b> No stacking, no undo tree — edit layering is next on the list, and the data model was shaped for it.</li>
+      <li><b>Crash-safety has one narrow window.</b> In-flight paid tasks are re-attached by task id after a restart; a crash that straddles submission itself fails loudly rather than risk a blind double-charge.</li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <div class="label">Run it</div>
+    <h2>Two minutes to a working copy.</h2>
+    <pre class="run"><span class="c"># requires Node ≥ 22 and ffmpeg</span>
+git clone https://github.com/tappj/Ripple.git
+cd Ripple/ripple
+npm install
+npm run server        <span class="c"># → http://localhost:5175</span>
+
+<span class="c"># no API key? it boots in <span class="a">mock mode</span> — the full interface,</span>
+<span class="c"># zero credits, edits simulated with a visible stand-in.</span>
+<span class="c"># real mode: put a Runway dev API key in api-key.txt at the repo root.</span></pre>
+    <p>Click <strong>Load demo scene</strong> and try the jacket edit yourself.</p>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>RIPPLE — BUILT ON THE RUNWAY DEVELOPER API</span>
+    <span>ALEPH 2.0 · GEMINI IMAGE · NODE + REACT + FFMPEG</span>
+    <span><a href="https://github.com/tappj/Ripple">github.com/tappj/Ripple</a></span>
+  </div>
+</footer>
+
+<script>
+  // Synced before/after wipe — the "before" video is the clock.
+  const b = document.getElementById('v-before');
+  const a = document.getElementById('v-after');
+  const wipe = document.getElementById('wipe');
+  const layer = document.getElementById('after-layer');
+  const divider = document.getElementById('divider');
+  let pct = 50;
+
+  function render() {
+    layer.style.clipPath = `inset(0 0 0 ${pct}%)`;
+    divider.style.left = pct + '%';
+    a.style.width = wipe.clientWidth + 'px';
+  }
+  function sync() {
+    if (Math.abs(a.currentTime - b.currentTime) > 0.08) a.currentTime = b.currentTime;
+  }
+  b.addEventListener('timeupdate', sync);
+  b.addEventListener('play', () => a.play().catch(() => {}));
+  b.addEventListener('pause', () => a.pause());
+  window.addEventListener('resize', render);
+
+  let dragging = false;
+  const move = (x) => {
+    const r = wipe.getBoundingClientRect();
+    pct = Math.max(2, Math.min(98, ((x - r.left) / r.width) * 100));
+    render();
+  };
+  wipe.addEventListener('pointerdown', (e) => { dragging = true; move(e.clientX); });
+  window.addEventListener('pointermove', (e) => dragging && move(e.clientX));
+  window.addEventListener('pointerup', () => (dragging = false));
+  render();
+
+  // Autoplay is muted+inline; some browsers still block until interaction.
+  document.addEventListener('click', () => { b.play().catch(() => {}); }, { once: true });
+</script>
+</body>
+</html>
