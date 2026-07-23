@@ -9,7 +9,7 @@ per-shot review board for catching and retrying the shots where the model drifte
 
 Named after the editor's *ripple edit*: a change that flows downstream through the timeline.
 
-Local tool — see **Run it** below. Works fully offline in mock mode, no API key required.
+Local tool — see **Run it** below. (`plan.md` holds the original build spec; `ripple/` is the app.) Works fully offline in mock mode, no API key required.
 
 ---
 
@@ -95,7 +95,7 @@ npm run server        # → http://localhost:5175  (serves the built UI)
   swapped for a simulator that applies a visible hue rotation as "the edit" with realistic
   async task states. Every screen, state transition, and the full pipeline (concat, split,
   re-split, export) is real — only the model calls are simulated. Force with `RIPPLE_MOCK=1`.
-- **Real mode:** put a dev API key in `../api-key.txt` or `RUNWAY_API_KEY`, and run
+- **Real mode:** put a dev API key in `api-key.txt` at the repo root or `RUNWAY_API_KEY`, and run
   `npm run preflight` first — it validates the key, prints the org credit balance, and tests
   the upload path without spending anything.
 - **Demo scene:** click *Load demo scene* — a bundled 4-shot, 15s generated scene (woman in a
