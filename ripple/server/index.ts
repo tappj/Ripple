@@ -35,6 +35,8 @@ console.log(mock ? '[ripple] MOCK mode — no credits will be spent' : '[ripple]
 const store = new Store(DATA_DIR);
 await store.init();
 const engine = new Engine(store, client);
+// Re-attach any executions that were in flight when the server last stopped.
+engine.resume().catch((err) => console.error('[ripple] startup resume failed:', err));
 
 const app = express();
 app.use(express.json());

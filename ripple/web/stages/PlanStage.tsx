@@ -103,7 +103,10 @@ function JobBadge({ label, job, hideIdle }: { label: string; job: GroupJob; hide
   if (job.status === 'idle' && hideIdle) return <span>{label}: —</span>;
   const cls =
     job.status === 'succeeded' ? 'ok' : job.status === 'failed' ? 'bad' : job.status === 'idle' ? '' : 'run';
-  const word = job.status === 'idle' ? 'ready' : job.status;
+  let word: string = job.status === 'idle' ? 'ready' : job.status;
+  if (job.status === 'running' && job.progress != null) {
+    word = `running · ${Math.floor(job.progress * 100)}%`;
+  }
   return (
     <span>
       {label}: <span className={cls}>{word}</span>

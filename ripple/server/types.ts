@@ -38,6 +38,8 @@ export interface GroupJob {
   taskId?: string;
   resultFile?: string;
   error?: string;
+  /** 0..1, from the task API while running. */
+  progress?: number;
 }
 
 export interface PlanGroup {
