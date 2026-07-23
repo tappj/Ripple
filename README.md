@@ -122,7 +122,7 @@ npm run server        # → http://localhost:5175  (serves the built UI)
 - **One edit at a time.** An edit session is scene-wide and singular — no stacking, no undo
   tree. Layering edits (run a second ripple on top of accepted results) is the obvious next
   feature and the data model (per-shot results feeding back to shots) was shaped with it in mind.
-- **Cost estimates are estimates.** 28 cr/s (56 minimum) for Aleph and ~15/image are published
+- **Cost estimates are estimates.** 28 cr/s (56 minimum) for Aleph and ~20/image are observed
   numbers, shown per-plan and logged per-action in the in-app ledger; the API doesn't return
   actual charged amounts per task, so the ledger is honest about being an estimate.
 
@@ -141,11 +141,12 @@ npm run server        # → http://localhost:5175  (serves the built UI)
 | What | Pool | Credits (est.) |
 |---|---|---|
 | Demo scene generation (15s, 1080p, multi-shot) | Workspace (via MCP) | ~500–750 |
-| Dev API generations | Dev org | 0 (blocked: zero balance) |
+| Hero keyframe (gemini_image3_pro, real run) | Dev org | 20 (actual) |
+| Aleph 2.0 propagation, 15.04s group (real run) | Dev org | 420 (actual) |
 | Mock-mode development & testing | — | 0 |
 
-A full real-mode demo pass on the bundled scene is estimated at **~450 credits** (~$4.50):
-one 15s Aleph group run (~422) + hero keyframe attempts (~30–45), plus ~150 per solo retry.
+The full real pass on the bundled scene cost **440 credits ($4.40)**, within 2% of the
+in-app estimate (442). Estimated solo retry cost: ~130–150 per shot.
 
 ---
 

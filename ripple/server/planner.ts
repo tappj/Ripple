@@ -7,7 +7,7 @@ export const ALEPH_MAX_CUTS = 10;
 export const ALEPH_MIN_SECONDS = 2;
 export const ALEPH_CREDITS_PER_SECOND = 28;
 export const ALEPH_MIN_CREDITS = 56;
-export const IMAGE_EDIT_CREDITS_ESTIMATE = 15;
+export const IMAGE_EDIT_CREDITS_ESTIMATE = 20; // observed actual for gemini_image3_pro (July 2026)
 
 export function alephCost(seconds: number): number {
   return Math.max(ALEPH_MIN_CREDITS, Math.ceil(seconds * ALEPH_CREDITS_PER_SECOND));
