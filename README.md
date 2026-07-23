@@ -9,7 +9,8 @@ per-shot review board for catching and retrying the shots where the model drifte
 
 Named after the editor's *ripple edit*: a change that flows downstream through the timeline.
 
-Local tool — see **Run it** below. (`plan.md` holds the original build spec; `ripple/` is the app.) Works fully offline in mock mode, no API key required.
+**Live showcase:** https://tappj.github.io/Ripple/ · **Run it locally:** see **Run it** below.
+(`plan.md` holds the original build spec; `ripple/` is the app; `docs/` is the showcase site.) Works fully offline in mock mode, no API key required.
 
 ---
 
